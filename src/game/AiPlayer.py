@@ -1,59 +1,161 @@
+import random
+import math
+import time
+
 class AiPlayer:
     """
-    AI Player implementation for game decision making.
-    This class will contain the logic for the AI to make decisions in the game.
+    AI player for Connect Four using minimax algorithm with alpha-beta pruning.
     """
     
-    def __init__(self, player_id):
+    def __init__(self, player_id, difficulty=5):
         """
-        Initialize the AI player.
+        Initialize AI player.
         
         Args:
-            player_id: Identifier for the player in the game
+            player_id: Player's ID number (1 or 2)
+            difficulty: Depth for minimax algorithm (default 5)
         """
         self.player_id = player_id
-        self.name = f"AI Player {player_id}"
-    
-    def make_move(self, game_state):
+        self.playertype = "AI"
+        self.name = f"Player {player_id} (AI)"
+        self.opponent_id = 3 - player_id  # Toggle between 1 and 2
+        self.difficulty = difficulty
+        self.last_move_time = 0
+        self.move_times = []
+        
+    def get_move(self, board):
         """
-        Determine and return the next move based on the current game state.
+        Get AI's next move using minimax algorithm.
         
         Args:
-            game_state: Current state of the game
+            board: The game board object
             
         Returns:
-            The selected move for the AI to make
+            Column number for the next move (1-7)
         """
-        # TODO: Implement decision-making algorithm
-        return None
-    
-    def evaluate_state(self, game_state):
+        start_time = time.time()
+        
+        # Get the best move using minimax with alpha-beta pruning
+        col, _ = self.minimax(board, self.difficulty, -math.inf, math.inf, True)
+        
+        # Record the time taken
+        self.last_move_time = time.time() - start_time
+        self.move_times.append(self.last_move_time)
+        
+        return col
+        
+    def minimax(self, board, depth, alpha, beta, maximizing_player):
         """
-        Evaluate the given game state and return a score.
+        Minimax algorithm with alpha-beta pruning.
         
         Args:
-            game_state: State of the game to evaluate
+            board: The game board object
+            depth: Current depth in the search tree
+            alpha: Alpha value for pruning
+            beta: Beta value for pruning
+            maximizing_player: Boolean, True if current player is maximizing
             
         Returns:
-            Numerical score representing how favorable the state is
+            Tuple (column, score) for the best move
         """
-        # TODO: Implement evaluation function
-        return 0
+        valid_moves = board.get_valid_moves()
+        game_over = board.check_game_over() or len(valid_moves) == 0
+        
+        # Terminal cases
+        if depth == 0 or game_over:
+            if game_over:
+                # If game is over, return appropriate score
+                winner = board.get_winner()
+                if winner and winner.player_id == self.player_id:
+                    return (None, 1000000000)  # AI wins
+                elif winner:
+                    return (None, -1000000000)  # Opponent wins
+                else:
+                    return (None, 0)  # Draw
+            else:
+                # Evaluate board at the leaf node
+                return (None, board.evaluate_position(self.player_id))
+        
+        # Choose a random valid move in case all moves have equal score
+        col = random.choice(valid_moves) if valid_moves else None
+        
+        if maximizing_player:
+            value = -math.inf
+            
+            for c in valid_moves:
+                # Create a copy of the board with this move
+                new_board = type(board)()
+                new_board.game_state = board.get_successor_state(self.player_id, c)
+                new_board.current_player_idx = board.current_player_idx
+                
+                # Recursively call minimax for the next depth
+                _, new_score = self.minimax(new_board, depth - 1, alpha, beta, False)
+                
+                # Update best move if a better one is found
+                if new_score > value:
+                    value = new_score
+                    col = c
+                    
+                # Alpha-beta pruning
+                if value > alpha:
+                    alpha = new_score
+
+                if beta <= alpha:
+                    break
+                    
+            return col, value
+            
+        else:  # Minimizing player
+            value = math.inf
+            
+            for c in valid_moves:
+                # Create a copy of the board with this move
+                new_board = type(board)()
+                new_board.game_state = board.get_successor_state(self.opponent_id, c)
+                new_board.current_player_idx = board.current_player_idx
+                
+                # Recursively call minimax for the next depth
+                _, new_score = self.minimax(new_board, depth - 1, alpha, beta, True)
+                
+                # Update best move if a better one is found
+                if new_score < value:
+                    value = new_score
+                    col = c
+                    
+                # Alpha-beta pruning
+                if value < beta:
+                    beta = value
+
+                if beta <= alpha:
+                    break
+                    
+            return col, value
+            
+    def get_average_move_time(self):
+        """
+        Get the average time taken per move.
+        
+        Returns:
+            Average time in seconds
+        """
+        if not self.move_times:
+            return 0
+        return sum(self.move_times) / len(self.move_times)
     
-    def minimax(self, game_state, depth, maximizing_player):
+    def get_last_move_time(self):
         """
-        Minimax algorithm implementation for decision making.
+        Get the time taken for the last move.
+        
+        Returns:
+            Time in seconds
+        """
+        return self.last_move_time
+    
+    def set_difficulty(self, difficulty):
+        """
+        Set the AI difficulty (minimax depth).
         
         Args:
-            game_state: Current state of the game
-            depth: Current depth in the game tree
-            maximizing_player: Boolean indicating whether current player is maximizing
-            
-        Returns:
-            Best score for the current state
+            difficulty: New depth for minimax
         """
-        # TODO: Implement minimax algorithm
-        return 0
-    
-    def __str__(self):
-        return self.name
+        self.difficulty = difficulty
