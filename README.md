@@ -86,7 +86,7 @@ IA_infoh410/
 - Press 'ESC' to exit
 
 ## Contributors
-- Imad Sharov
+- Imad Sharof
 - Kerim Esiev
 - Mohamed Sewif
 
