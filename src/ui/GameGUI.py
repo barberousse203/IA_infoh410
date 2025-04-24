@@ -82,6 +82,15 @@ class GameGUI:
         """Run the main game loop."""
         self.setup()
         
+        # Render the initial state before any AI moves to prevent black screen
+        self._render()
+        pygame.display.flip()
+        
+        # If in AI vs AI mode, add a small delay to ensure the board is visible before moves start
+        if self.ai_vs_ai:
+            # Wait a moment so the board is visible before AI moves
+            pygame.time.delay(500)  # 500ms delay
+            
         # Main game loop
         while self.running:
             self._handle_events()
