@@ -37,34 +37,32 @@ class AiPlayer:
         
         # Get the best move using minimax with alpha-beta pruning
         col, _ = self.minimax(board, self.difficulty, -math.inf, math.inf, True)
-        
+
         # Record the time taken
         self.last_move_time = time.time() - start_time
         self.move_times.append(self.last_move_time)
         
         return col
-        
+
     def minimax(self, board, depth, alpha, beta, maximizing_player):
         """
         Minimax algorithm with alpha-beta pruning.
-        
+
         Args:
             board: The game board object
             depth: Current depth in the search tree
             alpha: Alpha value for pruning
             beta: Beta value for pruning
             maximizing_player: Boolean, True if current player is maximizing
-            
+
         Returns:
             Tuple (column, score) for the best move
         """
         valid_moves = board.get_valid_moves()
         game_over = board.check_game_over() or len(valid_moves) == 0
-        
         # Terminal cases
         if depth == 0 or game_over:
             if game_over:
-                # If game is over, return appropriate score
                 winner = board.get_winner()
                 if winner and winner.player_id == self.player_id:
                     return (None, 1000000000)  # AI wins
@@ -73,64 +71,51 @@ class AiPlayer:
                 else:
                     return (None, 0)  # Draw
             else:
-                # Evaluate board at the leaf node
-                return (None, board.evaluate_position(self.player_id))
-        
-        # Choose a random valid move in case all moves have equal score
-        col = random.choice(valid_moves) if valid_moves else None
-        
+                return (None, board.evaluate_position(self.player_id))  # Evaluate board
+
+        col = None
         if maximizing_player:
             value = -math.inf
-            
             for c in valid_moves:
                 # Create a copy of the board with this move
-                new_board = type(board)()
+                new_board = board.copy()
                 new_board.game_state = board.get_successor_state(self.player_id, c)
                 new_board.current_player_idx = board.current_player_idx
-                
-                # Recursively call minimax for the next depth
+
+                # Recursively call minimax
+
                 _, new_score = self.minimax(new_board, depth - 1, alpha, beta, False)
-                
-                # Update best move if a better one is found
                 if new_score > value:
                     value = new_score
                     col = c
-                    
-                # Alpha-beta pruning
+
                 if value > alpha:
                     alpha = new_score
-
                 if beta <= alpha:
-                    break
-                    
+                    break  # Alpha-beta pruning
             return col, value
-            
+
         else:  # Minimizing player
             value = math.inf
-            
             for c in valid_moves:
                 # Create a copy of the board with this move
-                new_board = type(board)()
+                new_board = board.copy()
                 new_board.game_state = board.get_successor_state(self.opponent_id, c)
                 new_board.current_player_idx = board.current_player_idx
-                
-                # Recursively call minimax for the next depth
+
+                # Recursively call minimax
                 _, new_score = self.minimax(new_board, depth - 1, alpha, beta, True)
-                
-                # Update best move if a better one is found
+
                 if new_score < value:
                     value = new_score
                     col = c
-                    
-                # Alpha-beta pruning
+
                 if value < beta:
                     beta = value
-
                 if beta <= alpha:
-                    break
-                    
+                    break  # Alpha-beta pruning
             return col, value
-            
+
     def get_average_move_time(self):
         """
         Get the average time taken per move.

@@ -27,8 +27,8 @@ class WelcomePage:
         
         # Game configuration options
         self.game_mode = "human_vs_ai"  # Options: "human_vs_ai", "ai_vs_ai"
-        self.ai_difficulty_1 = "medium"  # Options: "easy", "medium", "hard"
-        self.ai_difficulty_2 = "medium"  # For AI vs AI mode
+        self.ai_difficulty_1 = 2  # Options: "easy", "medium", "hard"
+        self.ai_difficulty_2 = 4  # For AI vs AI mode
         
         # UI Elements
         self.buttons = []
@@ -89,7 +89,7 @@ class WelcomePage:
             'id': 'ai1_easy',
             'text': 'AI 1: Easy',
             'rect': pygame.Rect(self.width // 2 - button_width*3/2 - margin, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(1, 'easy'),
+            'action': lambda: self._select_ai_difficulty(1, 1),
             'type': 'ai1',
             'selected': self.ai_difficulty_1 == 1
         })
@@ -98,7 +98,7 @@ class WelcomePage:
             'id': 'ai1_medium',
             'text': 'AI 1: Medium',
             'rect': pygame.Rect(self.width // 2 - button_width // 2, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(1, 'medium'),
+            'action': lambda: self._select_ai_difficulty(1, 2),
             'type': 'ai1',
             'selected': self.ai_difficulty_1 == 3
         })
@@ -107,7 +107,7 @@ class WelcomePage:
             'id': 'ai1_hard',
             'text': 'AI 1: Hard',
             'rect': pygame.Rect(self.width // 2 + button_width // 2 + margin, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(1, 'hard'),
+            'action': lambda: self._select_ai_difficulty(1, 5),
             'type': 'ai1',
             'selected': self.ai_difficulty_1 == 5
         })
@@ -119,7 +119,7 @@ class WelcomePage:
             'id': 'ai2_easy',
             'text': 'AI 2: Easy',
             'rect': pygame.Rect(self.width // 2 - button_width*3/2 - margin, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(2, 'easy'),
+            'action': lambda: self._select_ai_difficulty(2, 2),
             'type': 'ai2',
             'selected': self.ai_difficulty_2 == 2
         })
@@ -128,7 +128,7 @@ class WelcomePage:
             'id': 'ai2_medium',
             'text': 'AI 2: Medium',
             'rect': pygame.Rect(self.width // 2 - button_width // 2, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(2, 'medium'),
+            'action': lambda: self._select_ai_difficulty(2, 4),
             'type': 'ai2',
             'selected': self.ai_difficulty_2 == 4
         })
@@ -137,7 +137,7 @@ class WelcomePage:
             'id': 'ai2_hard',
             'text': 'AI 2: Hard',
             'rect': pygame.Rect(self.width // 2 + button_width // 2 + margin, y_position, button_width, button_height),
-            'action': lambda: self._select_ai_difficulty(2, 'hard'),
+            'action': lambda: self._select_ai_difficulty(2, 6),
             'type': 'ai2',
             'selected': self.ai_difficulty_2 == 6
         })
@@ -166,14 +166,10 @@ class WelcomePage:
         """Select AI difficulty."""
         if ai_number == 1:
             self.ai_difficulty_1 = difficulty
-            for button in self.buttons:
-                if button['type'] == 'ai1':
-                    button['selected'] = button['id'] == f'ai1_{difficulty}'
+
         else:
             self.ai_difficulty_2 = difficulty
-            for button in self.buttons:
-                if button['type'] == 'ai2':
-                    button['selected'] = button['id'] == f'ai2_{difficulty}'
+
     
     def _start_game(self):
         """Start the game with the selected options."""
@@ -201,14 +197,19 @@ class WelcomePage:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
                     self._handle_click(event.pos)
-    
+
     def _handle_click(self, pos):
         """Handle mouse clicks."""
         for button in self.buttons:
             if button['rect'].collidepoint(pos):
-                button['action']()
+                # Mettre à jour l'état sélectionné pour les boutons du même type
+                for other_button in self.buttons:
+                    if other_button['type'] == button['type']:
+                        other_button['selected'] = False
+                button['selected'] = True
+                button['action']()  # Exécuter l'action associée
                 break
-    
+
     def _render(self):
         """Render the welcome page."""
         self.screen.fill(self.colors['background'])
@@ -268,6 +269,7 @@ class WelcomePage:
         else:  # AI vs AI
             player1 = AiPlayer(1, self.ai_difficulty_1)
             player2 = AiPlayer(2, self.ai_difficulty_2)
+
             
         return {
             'mode': self.game_mode,

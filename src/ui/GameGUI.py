@@ -129,19 +129,16 @@ class GameGUI:
             current_player = self.game.get_current_player()
             if current_player.playertype == "AI":
                 try:
-                    # Use the AI player to get the next move
                     move = current_player.get_move(self.game)
-                except Exception as e:
-                    self.show_message(f"AI error: {str(e)}", duration=2000)
-                    move = None
-                if move:
                     success = self.game.make_move(move)
                     if success:
-                        self.turn_count += 1  # Increment turn count on successful move
-                    if not success:
-                        self.show_message(f"AI attempted invalid move: {move}", duration=2000)
-                else:
-                    self.show_message("AI failed to make a move.")    
+                        self.turn_count += 1  # Incrémenter le compteur de tours
+                    else:
+                        self.show_message(f"AI attempted invalid move: {move}")
+                except Exception as e:
+                    self.show_message(f"AI error: {str(e)}")
+        else:
+            return # No need to update if game is over
             
 
         

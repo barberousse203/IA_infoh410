@@ -14,7 +14,7 @@ class Board:
     EMPTY = 0
     MAX_SPACE_TO_WIN = 3  # Farthest space where a winning connection may start
     
-    def __init__(self, player1_type="human", player2_type="ai"):
+    def __init__(self, player1, player2):
         """
         Initialize the game with players and starting state.
         
@@ -23,7 +23,7 @@ class Board:
             player2_type: Type of player 2 ("human" or "ai")
         """
         self.players = []
-        self._init_players(player1_type, player2_type)
+        self._init_players(player1, player2)
         self.current_player_idx = 0
         self.game_state = None
         self.game_over = False
@@ -32,7 +32,7 @@ class Board:
         self.board_size = (self.COLUMNS, self.ROWS)
         self._init_game_state()
     
-    def _init_players(self, player1_type, player2_type):
+    def _init_players(self, player1, player2):
         """
         Initialize players based on their types.
         
@@ -41,17 +41,16 @@ class Board:
             player2_type: Type of player 2
         """
         # Player 1
-        if player1_type == "human":
+        if player1.playertype == "Human":
             self.players.append(HumanPlayer(1))
-            print(self.players)
         else:
-            self.players.append(AiPlayer(1))
+            self.players.append(player1)
             
         # Player 2
-        if player2_type == "human":
+        if player2.playertype == "Human":
             self.players.append(HumanPlayer(2))
         else:
-            self.players.append(AiPlayer(2))
+            self.players.append(player2)
         
     
     def _init_game_state(self):
@@ -203,7 +202,7 @@ class Board:
     def next_turn(self):
         """Switch to the next player's turn."""
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
-    
+
     def check_game_over(self):
         """
         Check if the game is over.
@@ -327,3 +326,18 @@ class Board:
             Integer count of moves
         """
         return self.total_moves
+
+    def copy(self):
+        """
+        Create a deep copy of the board object.
+
+        Returns:
+            A new instance of the board with the same state.
+        """
+        new_board = type(self)(self.players[0], self.players[1])  # Create a new instance of the same class
+        new_board.game_state = self.game_state.copy()  # Use numpy's copy method for deep copying
+        new_board.current_player_idx = self.current_player_idx  # Copy the current player index
+        new_board.game_over = self.game_over  # Copy the game over state
+        new_board.winner = self.winner  # Copy the winner
+        new_board.total_moves = self.total_moves  # Copy the total moves
+        return new_board
