@@ -14,7 +14,13 @@ def main():
         if not config:
             print("Game configuration was not provided.")
             break
-        print(f"Starting game with configuration: {config}")
+        print("\n" + "="*40)
+        print(" Starting Game with Configuration ")
+        print("="*40)
+        print(f" Mode: {config['mode']}")
+        print(f" Player 1: {config['player1']}")
+        print(f" Player 2: {config['player2']}")
+        print("="*40 + "\n")
 
         # Create game with the selected configuration
         game = GameGUI(

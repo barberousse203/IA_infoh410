@@ -39,9 +39,15 @@ class GameGUI:
         self.message_start_time = 0
         self.current_message = None
         self.message_duration = 0
-        self.turn_count = 0  # Add our own turn counter
+        self.turn_count = 1  # Add our own turn counter
         self.ai_thinking = False  # Add a flag to control AI move timing
         self.last_move_time = 0   # Track when the last move was made
+        
+        # Check if both players are AI and set initial state accordingly
+        self.ai_vs_ai = False
+        if player1 and player2 and player1.playertype == "AI" and player2.playertype == "AI":
+            self.ai_vs_ai = True
+            self.ai_thinking = True  # Start the first AI move automatically
         
         # Add button for returning to welcome page
         self.button_width = 150
@@ -129,8 +135,8 @@ class GameGUI:
         if self.reset_button.collidepoint(pos):
             self.reset_button_pressed = True
             self.game.reset_game()
-            self.turn_count = 0  # Reset turn count
-            self.ai_thinking = False
+            self.turn_count = 1  # Reset turn count to 1 (not 0)
+            self.ai_thinking = self.ai_vs_ai  # Resume AI thinking if in AI vs AI mode
             self.show_message("Game reset!", duration=1500)
             return
             
@@ -192,7 +198,7 @@ class GameGUI:
             
         # If current player is AI, get its move
         current_player = self.game.get_current_player()
-        if current_player.playertype == "AI" and self.ai_thinking:
+        if current_player.playertype == "AI" and (self.ai_thinking or self.ai_vs_ai):
             # Add a small delay before AI move (adjust as needed)
             if time.time() - self.last_move_time < 0.5:  # 500ms delay
                 return
@@ -203,10 +209,25 @@ class GameGUI:
                 if success:
                     self.turn_count += 1  # Increment turn count
                     self.last_move_time = time.time()
-                self.ai_thinking = False
+                    
+                    # Force a render update to show the AI move immediately in AI vs AI mode
+                    if self.ai_vs_ai:
+                        self._render()
+                        pygame.display.flip()
+                
+                # In AI vs AI mode, we always want the next AI to think
+                if self.ai_vs_ai:
+                    next_player = self.game.get_current_player()
+                    if next_player.playertype == "AI" and not self.game.game_over:
+                        self.ai_thinking = True
+                else:
+                    self.ai_thinking = False
+                    
             except Exception as e:
                 self.show_message(f"AI error: {str(e)}")
                 self.ai_thinking = False
+                if self.ai_vs_ai:  # If in AI vs AI mode, stop automatic play on error
+                    self.ai_vs_ai = False
         
         # Check if game is over
         if self.game.check_game_over():
@@ -284,9 +305,10 @@ class GameGUI:
     
     def _render_game_info(self):
         """Render game information."""
-        # Render current player
+        # Render current player with matching color
         current_player = self.game.get_current_player()
-        player_text = self.font.render(f"Current: {current_player}", True, self.colors['text'])
+        player_color = self.colors['player1'] if current_player.player_id == 1 else self.colors['player2']
+        player_text = self.font.render(f"Current: {current_player}", True, player_color)
         self.screen.blit(player_text, (20, 20))
         
         # Render turn counter using our own counter
@@ -297,7 +319,9 @@ class GameGUI:
         if self.game.game_over:
             winner = self.game.get_winner()
             if winner:
-                status_text = self.font.render(f"Winner: {winner}", True, self.colors['text'])
+                # Use winner's color for the winning message
+                winner_color = self.colors['player1'] if winner.player_id == 1 else self.colors['player2']
+                status_text = self.font.render(f"Winner: {winner}", True, winner_color)
             else:
                 status_text = self.font.render("Draw!", True, self.colors['text'])
             self.screen.blit(status_text, (self.width // 2 - 100, 20))
