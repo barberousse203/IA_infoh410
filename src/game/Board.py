@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from game.HumanPlayer import HumanPlayer
 from game.AiPlayer import AiPlayer
 import numpy as np
+from typing import List, Optional, Union
 
+PlayerT = Union[HumanPlayer, AiPlayer]
 class Board:
     """
     Main game controller class.
@@ -14,7 +18,7 @@ class Board:
     EMPTY = 0
     MAX_SPACE_TO_WIN = 3  # Farthest space where a winning connection may start
     
-    def __init__(self, player1, player2):
+    def __init__(self,  player1: PlayerT, player2: PlayerT):
         """
         Initialize the game with players and starting state.
         
@@ -22,17 +26,19 @@ class Board:
             player1_type: Type of player 1 ("human" or "ai")
             player2_type: Type of player 2 ("human" or "ai")
         """
-        self.players = []
+       
+        self.players: List[PlayerT] = []
         self._init_players(player1, player2)
-        self.current_player_idx = 0
-        self.game_state = None
-        self.game_over = False
-        self.winner = None
-        self.total_moves = 0
+
+        self.current_player_idx: int = 0
+        self.game_over: bool = False
+        self.winner: Optional[PlayerT] = None
+        self.total_moves: int = 0
+
+        self.game_state: np.ndarray = np.zeros((self.ROWS, self.COLUMNS), np.int8)
         self.board_size = (self.COLUMNS, self.ROWS)
-        self._init_game_state()
     
-    def _init_players(self, player1, player2):
+    def _init_players(self, p1: PlayerT, p2: PlayerT) -> None:
         """
         Initialize players based on their types.
         
@@ -40,23 +46,10 @@ class Board:
             player1_type: Type of player 1
             player2_type: Type of player 2
         """
-        # Player 1
-        if player1.playertype == "Human":
-            self.players.append(HumanPlayer(1))
-        else:
-            self.players.append(player1)
-            
-        # Player 2
-        if player2.playertype == "Human":
-            self.players.append(HumanPlayer(2))
-        else:
-            self.players.append(player2)
-        
-    
-    def _init_game_state(self):
-        """Initialize the starting game state with an empty board."""
-        self.game_state = np.zeros((self.ROWS, self.COLUMNS), np.int8)
-    
+        self.players.append(p1 if p1.playertype == "AI" else HumanPlayer(1))
+        self.players.append(p2 if p2.playertype == "AI" else HumanPlayer(2))
+
+
     def make_move(self, column):
         """
         Apply a move to the game state by placing a piece in the specified column.
@@ -88,8 +81,8 @@ class Board:
         # Move to next player's turn
         self.next_turn()
         return True
-    
-    def is_valid_column(self, column):
+        
+    def is_valid_column(self, column: int) -> bool:
         """
         Check if a column is valid for placing a piece.
         
@@ -99,22 +92,18 @@ class Board:
         Returns:
             Boolean indicating if the column is valid
         """
-        if column < 1 or column > self.COLUMNS:
-            return False
-        return self.game_state[0][column - 1] == self.EMPTY
+        return 1 <= column <= self.COLUMNS and self.game_state[0, column - 1] == self.EMPTY
+
     
-    def get_valid_moves(self):
+    def get_valid_moves(self) -> List[int]:
         """
         Get all valid moves (columns) for the current state.
         
         Returns:
             List of valid columns (1-7)
         """
-        valid_moves = []
-        for i in range(1, self.COLUMNS + 1):
-            if self.is_valid_column(i):
-                valid_moves.append(i)
-        return valid_moves
+        return [c for c in range(1, self.COLUMNS + 1) if self.is_valid_column(c)]
+
     
     def place_piece(self, player_id, column):
         """
@@ -130,26 +119,36 @@ class Board:
                 self.game_state[row][index] = player_id
                 return
     
-    def get_successor_state(self, player_id, column):
-        """
-        Get a new board state that would result from placing a piece.
-        
-        Args:
-            player_id: ID of the player making the move
-            column: Column to place the piece
-            
-        Returns:
-            New board state as numpy array
-        """
-        new_board = self.game_state.copy()
-        index = column - 1
-        for row in reversed(range(self.ROWS)):
-            if new_board[row][index] == self.EMPTY:
-                new_board[row][index] = player_id
-                break
-        return new_board
-    
-    def detect_win(self, player_id):
+
+    def shallow_copy(self) -> "Board":
+        clone: "Board" = object.__new__(Board)          # bypass __init__
+        clone.__dict__ = self.__dict__.copy()            # shallow copy of attrs
+        clone.game_state = self.game_state.copy()        # *real* board copy
+        clone.game_over = False                     # reset
+        clone.winner = None                         # reset
+        return clone
+
+
+
+    def apply_move(self, player_id: int, column: int) -> "Board":
+        """Return a brand‑new Board after `player_id` drops in `column`."""
+        nxt = self.shallow_copy()
+        nxt.place_piece(player_id, column)
+        nxt.total_moves += 1
+
+        # terminal detection
+        if nxt.detect_win(player_id):
+            nxt.game_over = True
+            nxt.winner = next(p for p in nxt.players if p.player_id == player_id)
+        elif len(nxt.get_valid_moves()) == 0:
+            nxt.game_over = True
+            nxt.winner = None
+        else:
+            nxt.current_player_idx = (self.current_player_idx + 1) % len(self.players)
+        return nxt
+
+
+    def detect_win(self, player_id)-> bool:
         """
         Check if the specified player has won.
         
@@ -159,38 +158,73 @@ class Board:
         Returns:
             Boolean indicating if the player has won
         """
-        board = self.game_state
-        # Horizontal win
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.ROWS):
-                if board[row][col] == player_id and board[row][col+1] == player_id and \
-                   board[row][col+2] == player_id and board[row][col+3] == player_id:
+        b = self.game_state
+        R, C, W = self.ROWS, self.COLUMNS, self.MAX_SPACE_TO_WIN
+        # horizontal / vertical
+        for c in range(C - W):
+            for r in range(R):
+                if all(b[r, c + k] == player_id for k in range(4)):
                     return True
-                    
-        # Vertical win
-        for col in range(self.COLUMNS):
-            for row in range(self.ROWS - self.MAX_SPACE_TO_WIN):
-                if board[row][col] == player_id and board[row+1][col] == player_id and \
-                   board[row+2][col] == player_id and board[row+3][col] == player_id:
+        for c in range(C):
+            for r in range(R - W):
+                if all(b[r + k, c] == player_id for k in range(4)):
                     return True
-                    
-        # Diagonal upwards win
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.ROWS - self.MAX_SPACE_TO_WIN):
-                if board[row][col] == player_id and board[row+1][col+1] == player_id and \
-                   board[row+2][col+2] == player_id and board[row+3][col+3] == player_id:
+        # diagonals
+        for c in range(C - W):
+            for r in range(R - W):
+                if all(b[r + k, c + k] == player_id for k in range(4)):
                     return True
-                    
-        # Diagonal downwards win
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.MAX_SPACE_TO_WIN, self.ROWS):
-                if board[row][col] == player_id and board[row-1][col+1] == player_id and \
-                   board[row-2][col+2] == player_id and board[row-3][col+3] == player_id:
+        for c in range(C - W):
+            for r in range(W, R):
+                if all(b[r - k, c + k] == player_id for k in range(4)):
                     return True
-                    
         return False
     
-    def get_current_player(self):
+
+    # evaluation (heuristic)
+    def pos_score(self, pid: int) -> int:
+        score = 0
+        b = self.game_state
+        # centre control
+        for c in range(2, 5):
+            for r in range(self.ROWS):
+                if b[r, c] == pid:
+                    score += 3 if c == 3 else 2
+        # windows of four
+        def add_window(rs, cs):
+            nonlocal score
+            window = [b[r, c] for r, c in zip(rs, cs)]
+            score += self._eval_window(window, pid)
+        # horiz & vert
+        for c in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
+            for r in range(self.ROWS):
+                add_window([r]*4, [c+i for i in range(4)])
+        for c in range(self.COLUMNS):
+            for r in range(self.ROWS - self.MAX_SPACE_TO_WIN):
+                add_window([r+i for i in range(4)], [c]*4)
+        # diag
+        for c in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
+            for r in range(self.ROWS - self.MAX_SPACE_TO_WIN):
+                add_window([r+i for i in range(4)], [c+i for i in range(4)])
+        for c in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
+            for r in range(self.MAX_SPACE_TO_WIN, self.ROWS):
+                add_window([r-i for i in range(4)], [c+i for i in range(4)])
+        return score
+    
+    def _eval_window(self, window, pid):
+        opp = 3 - pid
+        p, e, o = window.count(pid), window.count(self.EMPTY), window.count(opp)
+        if p == 4:             return 100_000
+        if p == 3 and e == 1:  return 100
+        if p == 2 and e == 2:  return 10
+        return 0
+
+
+    def relative_score(self, my_id: int) -> int:
+        return self.pos_score(my_id) - self.pos_score(3 - my_id)
+
+
+    def get_current_player(self)-> PlayerT:
         """
         Get the current player.
         
@@ -223,121 +257,9 @@ class Board:
     
     def reset_game(self):
         """Reset the game to initial state."""
-        self.current_player_idx = 0
-        self.game_over = False
-        self.winner = None
-        self.total_moves = 0
-        self._init_game_state()
+        self.__init__(self.players[0], self.players[1])  # rebuild fresh
 
-    def evaluate_position(self, player_id):
-        """
-        Evaluate the current board position for the given player.
-        
-        Args:
-            player_id: ID of the player
-            
-        Returns:
-            Numeric score representing position value
-        """
-        score = 0
-        board = self.game_state
-        
-        # Give more weight to center columns
-        for col in range(2, 5):
-            for row in range(self.ROWS):
-                if board[row][col] == player_id:
-                    if col == 3:
-                        score += 3
-                    else:
-                        score += 2
-        
-        # Check all possible four-in-a-row positions
-        # Horizontal pieces
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.ROWS):
-                adjacent_pieces = [board[row][col], board[row][col+1], 
-                                   board[row][col+2], board[row][col+3]]
-                score += self._evaluate_adjacent_pieces(adjacent_pieces, player_id)
-        
-        # Vertical pieces
-        for col in range(self.COLUMNS):
-            for row in range(self.ROWS - self.MAX_SPACE_TO_WIN):
-                adjacent_pieces = [board[row][col], board[row+1][col], 
-                                   board[row+2][col], board[row+3][col]]
-                score += self._evaluate_adjacent_pieces(adjacent_pieces, player_id)
-        
-        # Diagonal upwards pieces
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.ROWS - self.MAX_SPACE_TO_WIN):
-                adjacent_pieces = [board[row][col], board[row+1][col+1], 
-                                   board[row+2][col+2], board[row+3][col+3]]
-                score += self._evaluate_adjacent_pieces(adjacent_pieces, player_id)
-        
-        # Diagonal downwards pieces
-        for col in range(self.COLUMNS - self.MAX_SPACE_TO_WIN):
-            for row in range(self.MAX_SPACE_TO_WIN, self.ROWS):
-                adjacent_pieces = [board[row][col], board[row-1][col+1], 
-                                   board[row-2][col+2], board[row-3][col+3]]
-                score += self._evaluate_adjacent_pieces(adjacent_pieces, player_id)
-        
-        return score
+    def __str__(self):  # quick text view for debugging
+        return "\n".join(" ".join(str(c) for c in row) for row in self.game_state)
     
-    def _evaluate_adjacent_pieces(self, adjacent_pieces, player_id):
-        """
-        Evaluate a set of four adjacent positions.
-        
-        Args:
-            adjacent_pieces: List of four adjacent board positions
-            player_id: ID of the player
-            
-        Returns:
-            Score for this set of positions
-        """
-        opponent_id = 3 - player_id  # Toggle between 1 and 2
-        score = 0
-        
-        player_pieces = adjacent_pieces.count(player_id)
-        empty_spaces = adjacent_pieces.count(self.EMPTY)
-        opponent_pieces = adjacent_pieces.count(opponent_id)
-        
-        if player_pieces == 4:
-            score += 99999
-        elif player_pieces == 3 and empty_spaces == 1:
-            score += 100
-        elif player_pieces == 2 and empty_spaces == 2:
-            score += 10
-            
-        return score
     
-    def get_state(self):
-        """
-        Get the current game state.
-        
-        Returns:
-            Current board state as numpy array
-        """
-        return self.game_state
-    
-    def get_total_moves(self):
-        """
-        Get the total number of moves made in the game so far.
-        
-        Returns:
-            Integer count of moves
-        """
-        return self.total_moves
-
-    def copy(self):
-        """
-        Create a deep copy of the board object.
-
-        Returns:
-            A new instance of the board with the same state.
-        """
-        new_board = type(self)(self.players[0], self.players[1])  # Create a new instance of the same class
-        new_board.game_state = self.game_state.copy()  # Use numpy's copy method for deep copying
-        new_board.current_player_idx = self.current_player_idx  # Copy the current player index
-        new_board.game_over = self.game_over  # Copy the game over state
-        new_board.winner = self.winner  # Copy the winner
-        new_board.total_moves = self.total_moves  # Copy the total moves
-        return new_board
