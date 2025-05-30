@@ -1,23 +1,44 @@
-# IA_infoh410: Connect 4 Game with AI
+# Connect Four AI Implementation
 
 ## Project Overview
-This project implements the classic Connect 4 game with an artificial intelligence opponent using the Minimax algorithm and Alpha-Beta pruning. The project was developed as part of the INFO-H410 Techniques of Artificial Intelligence course at Université Libre de Bruxelles.
+This project implements the classic Connect Four game with an artificial intelligence opponent using the Minimax algorithm enhanced with Alpha-Beta pruning. The implementation includes a graphical user interface built with Pygame, customizable AI difficulty settings, and comprehensive performance testing tools. The project was developed as part of the INFO-H410 Techniques of Artificial Intelligence course at Université Libre de Bruxelles.
 
 ## Game Description
-Connect 4 is a two-player connection game where players take turns dropping colored discs into a seven-column, six-row vertically suspended grid. The objective is to connect four discs of the same color vertically, horizontally, or diagonally before your opponent.
+Connect Four is a two-player connection game where players take turns dropping colored discs into a seven-column, six-row vertically suspended grid. The objective is to connect four discs of the same color vertically, horizontally, or diagonally before your opponent.
 
 ## Features
 - Interactive graphical user interface using Pygame
-- Human vs Human mode
-- Human vs AI mode
-- AI vs AI mode (for demonstration)
-- Adjustable AI parameteres
+- Multiple game modes:
+  - Human vs AI
+  - AI vs AI (for demonstrations and algorithm comparison)
+- Adjustable AI difficulty levels (search depth from 1-10)
+- Custom difficulty settings via text input
+- Visual feedback with colored player indicators
+- Performance testing tools for algorithm comparison
+- Reset and main menu buttons for improved user experience
 
 ## Technical Implementation
 The game is implemented in Python with the following components:
-- Game logic and state management
-- Interactive GUI using Pygame
-- AI player using Minimax algorithm with Alpha-Beta pruning
+- **Game Logic**: Core game rules, state management, and win detection
+- **AI Player**: Minimax algorithm with Alpha-Beta pruning optimization
+- **Human Player**: Interface for human input via mouse clicks
+- **GUI**: Interactive game display using Pygame
+- **Performance Testing**: Tools to compare standard Minimax vs Alpha-Beta pruning
+
+## AI Algorithm
+The AI uses Minimax with Alpha-Beta pruning to make optimal decisions:
+
+### Minimax
+A recursive algorithm that simulates all possible game states to a certain depth, assuming both players play optimally. The AI maximizes its advantage while assuming the opponent will minimize it.
+
+### Alpha-Beta Pruning
+An optimization technique that dramatically reduces the number of nodes evaluated in the search tree by eliminating branches that cannot possibly influence the final decision. Our testing shows this reduces node evaluations by up to 84.5% and provides a 7.1x speedup at depth 5.
+
+### Evaluation Function
+The board positions are evaluated based on:
+- Center control (pieces in central columns are weighted higher)
+- Connection patterns (potential winning sequences)
+- Defensive positioning (blocking opponent's potential wins)
 
 ## Installation and Setup
 
@@ -34,7 +55,7 @@ The game is implemented in Python with the following components:
 
 2. Install the required packages
    ```bash
-   pip install pygame
+   pip install pygame numpy
    ```
 
 3. Run the game
@@ -42,26 +63,10 @@ The game is implemented in Python with the following components:
    python src/main.py
    ```
 
-## AI Algorithm Implementation
-The AI uses the Minimax algorithm with Alpha-Beta pruning to determine the best move:
-
-### Minimax Algorithm
-Minimax is a decision-making algorithm that minimizes the possible loss for a worst-case scenario. In the context of Connect 4:
-- The AI evaluates the game board by looking ahead several moves
-- It alternates between maximizing its score and minimizing the opponent's score
-- The algorithm recursively evaluates all possible moves up to a certain depth
-
-### Alpha-Beta Pruning
-Alpha-Beta pruning enhances the Minimax algorithm by eliminating branches that don't need to be explored:
-- Alpha represents the minimum score that the maximizing player is assured of
-- Beta represents the maximum score that the minimizing player is assured of
-- When a node's value exceeds beta (for a maximizing player) or falls below alpha (for a minimizing player), we can "prune" that branch
-
-### Evaluation Function
-The AI evaluates board positions based on:
-- Connection patterns (potential winning sequences)
-- Control of the center columns
-- Defensive positioning to block opponent wins
+4. Run performance tests (optional)
+   ```bash
+   python src/main.py --performance-test
+   ```
 
 ## Project Structure
 ```
@@ -69,14 +74,18 @@ IA_infoh410/
 │
 ├── src/                # Source code
 │   ├── main.py         # Entry point
+│   ├── performance_test.py         # perfermance script
 │   ├── game/           # Game logic
 │   │   ├── game.py     # Main game controller
 │   │   ├── AiPlayer.py # AI implementation
 │   │   └── humanplayer.py # Human player implementation
 │   └── ui/             # User interface
-│       └── GameGUI.py  # Pygame-based GUI
+│       |── GameGUI.py  # Pygame-based GUI
+│       └── Welcomepage.py  # Welcomepage-based GUI
+
 │
-├── tests/              # Unit tests
+├── results/              # Results of performance tests
+├── docs/              # screenshots of the ui
 └── README.md           # This file
 ```
 
