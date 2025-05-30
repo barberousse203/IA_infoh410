@@ -30,6 +30,11 @@ class WelcomePage:
         self.ai_difficulty_1 = 2  # Options: "easy", "medium", "hard"
         self.ai_difficulty_2 = 4  # For AI vs AI mode
         
+        # Custom difficulty input
+        self.custom_difficulty_1 = ""
+        self.custom_difficulty_2 = ""
+        self.active_input = None  # Which input field is active
+        
         # UI Elements
         self.buttons = []
         self.selected_option = None
@@ -42,7 +47,10 @@ class WelcomePage:
             'button_hover': (100, 160, 210),
             'button_text': (255, 255, 255),
             'selected': (50, 205, 50),
-            'title': (70, 70, 120)
+            'title': (70, 70, 120),
+            'input_inactive': (220, 220, 220),
+            'input_active': (240, 240, 255),
+            'input_border': (100, 100, 100)
         }
         
     def setup(self):
@@ -58,8 +66,8 @@ class WelcomePage:
         
     def _create_buttons(self):
         """Create buttons for the welcome page."""
-        button_width = 200
-        button_height = 50
+        button_width = 150
+        button_height = 30
         margin = 20
         y_position = 150
         
@@ -84,11 +92,11 @@ class WelcomePage:
         
         y_position += button_height + margin * 2
         
-        # AI 1 difficulty buttons
+        # AI 1 difficulty buttons - align them evenly across the center
         self.buttons.append({
             'id': 'ai1_easy',
             'text': 'AI 1: Easy',
-            'rect': pygame.Rect(self.width // 2 - button_width*3/2 - margin, y_position, button_width, button_height),
+            'rect': pygame.Rect(self.width // 2 - button_width - button_width//2 - margin, y_position, button_width, button_height),
             'action': lambda: self._select_ai_difficulty(1, 1),
             'type': 'ai1',
             'selected': self.ai_difficulty_1 == 1
@@ -106,19 +114,40 @@ class WelcomePage:
         self.buttons.append({
             'id': 'ai1_hard',
             'text': 'AI 1: Hard',
-            'rect': pygame.Rect(self.width // 2 + button_width // 2 + margin, y_position, button_width, button_height),
+            'rect': pygame.Rect(self.width // 2 + button_width//2 + margin, y_position, button_width, button_height),
             'action': lambda: self._select_ai_difficulty(1, 5),
             'type': 'ai1',
             'selected': self.ai_difficulty_1 == 5
         })
         
-        y_position += button_height + margin * 2
+        y_position += button_height + margin 
+        
+        # Display current AI 1 difficulty 
+        self.ai1_depth_y = y_position
+        y_position += margin  # Space for the text
+        
+        # Custom difficulty input for AI 1 - center it better
+        input_width = 150
+        input_height = 30
+        self.custom_input_1_rect = pygame.Rect(self.width // 2 - input_width - margin, y_position, input_width, input_height)
+        
+        # Button to apply custom difficulty - position right next to the input
+        self.buttons.append({
+            'id': 'ai1_custom_apply',
+            'text': 'Set Custom',
+            'rect': pygame.Rect(self.width // 2 + margin, y_position, input_width, input_height),
+            'action': self._apply_custom_difficulty_1,
+            'type': 'action',
+            'selected': False
+        })
+        
+        y_position += input_height + margin * 2
         
         # AI 2 difficulty buttons (for AI vs AI mode)
         self.buttons.append({
             'id': 'ai2_easy',
             'text': 'AI 2: Easy',
-            'rect': pygame.Rect(self.width // 2 - button_width*3/2 - margin, y_position, button_width, button_height),
+            'rect': pygame.Rect(self.width // 2 - button_width - button_width//2 - margin, y_position, button_width, button_height),
             'action': lambda: self._select_ai_difficulty(2, 2),
             'type': 'ai2',
             'selected': self.ai_difficulty_2 == 2
@@ -136,15 +165,34 @@ class WelcomePage:
         self.buttons.append({
             'id': 'ai2_hard',
             'text': 'AI 2: Hard',
-            'rect': pygame.Rect(self.width // 2 + button_width // 2 + margin, y_position, button_width, button_height),
+            'rect': pygame.Rect(self.width // 2 + button_width//2 + margin, y_position, button_width, button_height),
             'action': lambda: self._select_ai_difficulty(2, 6),
             'type': 'ai2',
             'selected': self.ai_difficulty_2 == 6
         })
         
-        y_position += button_height + margin * 3
+        y_position += button_height + margin
         
-        # Start button
+        # Display current AI 2 difficulty
+        self.ai2_depth_y = y_position
+        y_position += margin  # Space for the text
+        
+        # Custom difficulty input for AI 2 - center it better
+        self.custom_input_2_rect = pygame.Rect(self.width // 2 - input_width - margin, y_position, input_width, input_height)
+        
+        # Button to apply custom difficulty for AI 2 - position right next to the input
+        self.buttons.append({
+            'id': 'ai2_custom_apply',
+            'text': 'Set Custom',
+            'rect': pygame.Rect(self.width // 2 + margin, y_position, input_width, input_height),
+            'action': self._apply_custom_difficulty_2,
+            'type': 'action',
+            'selected': False
+        })
+        
+        y_position += input_height + margin
+        
+        # Start button - position at the bottom with enough space
         self.buttons.append({
             'id': 'start_game',
             'text': 'Start Game',
@@ -166,10 +214,38 @@ class WelcomePage:
         """Select AI difficulty."""
         if ai_number == 1:
             self.ai_difficulty_1 = difficulty
-
         else:
             self.ai_difficulty_2 = difficulty
-
+    
+    def _apply_custom_difficulty_1(self):
+        """Apply custom difficulty for AI 1."""
+        try:
+            if self.custom_difficulty_1.strip():
+                difficulty = max(1, min(10, int(self.custom_difficulty_1)))
+                self.ai_difficulty_1 = difficulty
+                
+                # Deselect preset buttons
+                for button in self.buttons:
+                    if button['type'] == 'ai1':
+                        button['selected'] = False
+        except ValueError:
+            # Invalid input, ignore
+            pass
+    
+    def _apply_custom_difficulty_2(self):
+        """Apply custom difficulty for AI 2."""
+        try:
+            if self.custom_difficulty_2.strip():
+                difficulty = max(1, min(10, int(self.custom_difficulty_2)))
+                self.ai_difficulty_2 = difficulty
+                
+                # Deselect preset buttons
+                for button in self.buttons:
+                    if button['type'] == 'ai2':
+                        button['selected'] = False
+        except ValueError:
+            # Invalid input, ignore
+            pass
     
     def _start_game(self):
         """Start the game with the selected options."""
@@ -197,18 +273,57 @@ class WelcomePage:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
                     self._handle_click(event.pos)
+            elif event.type == pygame.KEYDOWN:
+                self._handle_key_press(event)
 
     def _handle_click(self, pos):
         """Handle mouse clicks."""
-        for button in self.buttons:
-            if button['rect'].collidepoint(pos):
-                # Mettre à jour l'état sélectionné pour les boutons du même type
-                for other_button in self.buttons:
-                    if other_button['type'] == button['type']:
-                        other_button['selected'] = False
-                button['selected'] = True
-                button['action']()  # Exécuter l'action associée
-                break
+        # Check for input field clicks
+        if self.custom_input_1_rect.collidepoint(pos):
+            self.active_input = 1
+        elif self.custom_input_2_rect.collidepoint(pos):
+            self.active_input = 2
+        else:
+            self.active_input = None
+            
+            # Check buttons
+            for button in self.buttons:
+                if button['rect'].collidepoint(pos):
+                    # Mark buttons of the same type as unselected
+                    if button['type'] in ['game_mode', 'ai1', 'ai2']:
+                        for other_button in self.buttons:
+                            if other_button['type'] == button['type']:
+                                other_button['selected'] = False
+                        button['selected'] = True
+                    button['action']()
+                    break
+
+    def _handle_key_press(self, event):
+        """Handle key presses for text input."""
+        if self.active_input is None:
+            return
+            
+        if event.key == pygame.K_BACKSPACE:
+            # Remove last character
+            if self.active_input == 1:
+                self.custom_difficulty_1 = self.custom_difficulty_1[:-1]
+            else:
+                self.custom_difficulty_2 = self.custom_difficulty_2[:-1]
+        elif event.key == pygame.K_RETURN:
+            # Apply the custom difficulty
+            if self.active_input == 1:
+                self._apply_custom_difficulty_1()
+            else:
+                self._apply_custom_difficulty_2()
+            self.active_input = None
+        elif event.unicode.isdigit():
+            # Only allow digits
+            if self.active_input == 1:
+                if len(self.custom_difficulty_1) < 2:  # Limit to 2 digits (max 10)
+                    self.custom_difficulty_1 += event.unicode
+            else:
+                if len(self.custom_difficulty_2) < 2:  # Limit to 2 digits (max 10)
+                    self.custom_difficulty_2 += event.unicode
 
     def _render(self):
         """Render the welcome page."""
@@ -229,12 +344,12 @@ class WelcomePage:
             ai_text = self.font_medium.render("Select AI Difficulty:", True, self.colors['text'])
         else:
             ai_text = self.font_medium.render("Select AI Players Difficulty:", True, self.colors['text'])
-        ai_rect = ai_text.get_rect(center=(self.width // 2, 220))
+        ai_rect = ai_text.get_rect(center=(self.width // 2, 200))  # Adjusted y-position to lift it up
         self.screen.blit(ai_text, ai_rect)
         
         # Draw buttons
         for button in self.buttons:
-            if (button['type'] == 'ai2' and self.game_mode != 'ai_vs_ai'):
+            if (button['type'] == 'ai2' or button['id'] == 'ai2_custom_apply') and self.game_mode != 'ai_vs_ai':
                 # Hide AI 2 settings if not in AI vs AI mode
                 continue
                 
@@ -251,6 +366,49 @@ class WelcomePage:
             button_text = self.font_small.render(button['text'], True, self.colors['button_text'])
             text_rect = button_text.get_rect(center=button['rect'].center)
             self.screen.blit(button_text, text_rect)
+        
+        # Draw custom difficulty input fields and labels
+        # AI 1 custom input
+        custom_label = self.font_small.render("Custom Depth:", True, self.colors['text'])
+        label_rect = custom_label.get_rect()
+        label_rect.right = self.custom_input_1_rect.left - 10  # Position label to the left of the input box
+        label_rect.centery = self.custom_input_1_rect.centery
+        self.screen.blit(custom_label, label_rect)
+        
+        input_color = self.colors['input_active'] if self.active_input == 1 else self.colors['input_inactive']
+        pygame.draw.rect(self.screen, input_color, self.custom_input_1_rect, border_radius=5)
+        pygame.draw.rect(self.screen, self.colors['input_border'], self.custom_input_1_rect, 2, border_radius=5)
+        
+        text_surf = self.font_small.render(self.custom_difficulty_1, True, self.colors['text'])
+        text_rect = text_surf.get_rect()
+        text_rect.center = self.custom_input_1_rect.center
+        self.screen.blit(text_surf, text_rect)
+        
+        # Draw current difficulty selections
+        ai1_text = self.font_small.render(f"Current AI 1 Depth: {self.ai_difficulty_1}", True, (0, 100, 0))
+        ai1_rect = ai1_text.get_rect(center=(self.width // 2, self.ai1_depth_y))
+        self.screen.blit(ai1_text, ai1_rect)
+        
+        # AI 2 custom input (only show in AI vs AI mode)
+        if self.game_mode == 'ai_vs_ai':
+            custom_label2 = self.font_small.render("Custom Depth:", True, self.colors['text'])
+            label_rect2 = custom_label2.get_rect()
+            label_rect2.right = self.custom_input_2_rect.left - 10
+            label_rect2.centery = self.custom_input_2_rect.centery
+            self.screen.blit(custom_label2, label_rect2)
+            
+            input_color = self.colors['input_active'] if self.active_input == 2 else self.colors['input_inactive']
+            pygame.draw.rect(self.screen, input_color, self.custom_input_2_rect, border_radius=5)
+            pygame.draw.rect(self.screen, self.colors['input_border'], self.custom_input_2_rect, 2, border_radius=5)
+            
+            text_surf = self.font_small.render(self.custom_difficulty_2, True, self.colors['text'])
+            text_rect = text_surf.get_rect()
+            text_rect.center = self.custom_input_2_rect.center
+            self.screen.blit(text_surf, text_rect)
+            
+            ai2_text = self.font_small.render(f"Current AI 2 Depth: {self.ai_difficulty_2}", True, (0, 0, 150))
+            ai2_rect = ai2_text.get_rect(center=(self.width // 2, self.ai2_depth_y))
+            self.screen.blit(ai2_text, ai2_rect)
         
         # Draw explanation text at bottom
         explain_text = self.font_small.render("Choose your game mode and AI difficulty, then click Start Game", 

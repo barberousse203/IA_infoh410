@@ -1,13 +1,14 @@
 import random
 import math
 import time
+from typing import Tuple
 
 class AiPlayer:
     """
     AI player for Connect Four using minimax algorithm with alpha-beta pruning.
     """
     
-    def __init__(self, player_id, difficulty=5):
+    def __init__(self, player_id: int, depth: int = 5):
         """
         Initialize AI player.
         
@@ -16,12 +17,12 @@ class AiPlayer:
             difficulty: Depth for minimax algorithm (default 5)
         """
         self.player_id = player_id
-        self.playertype = "AI"
+        self.opponent_id = 3 - player_id
         self.name = f"Player {player_id} (AI)"
-        self.opponent_id = 3 - player_id  # Toggle between 1 and 2
-        self.difficulty = difficulty
-        self.last_move_time = 0
+        self.playertype = "AI"
+        self.depth = depth
         self.move_times = []
+        self.last_move_time = 0.0
         
     def get_move(self, board):
         """
@@ -36,7 +37,7 @@ class AiPlayer:
         start_time = time.time()
         
         # Get the best move using minimax with alpha-beta pruning
-        col, _ = self.minimax(board, self.difficulty, -math.inf, math.inf, True)
+        col, _ = self._minimax(board, self.depth, -math.inf, math.inf, True)
 
         # Record the time taken
         self.last_move_time = time.time() - start_time
@@ -44,7 +45,7 @@ class AiPlayer:
         
         return col
 
-    def minimax(self, board, depth, alpha, beta, maximizing_player):
+    def _minimax(self, board, depth: int, alpha: float, beta: float, maximizing: bool) -> Tuple[int, float]:
         """
         Minimax algorithm with alpha-beta pruning.
 
@@ -58,63 +59,39 @@ class AiPlayer:
         Returns:
             Tuple (column, score) for the best move
         """
-        valid_moves = board.get_valid_moves()
-        game_over = board.check_game_over() or len(valid_moves) == 0
-        # Terminal cases
-        if depth == 0 or game_over:
-            if game_over:
-                winner = board.get_winner()
-                if winner and winner.player_id == self.player_id:
-                    return (None, 1000000000)  # AI wins
-                elif winner:
-                    return (None, -1000000000)  # Opponent wins
-                else:
-                    return (None, 0)  # Draw
-            else:
-                return (None, board.evaluate_position(self.player_id))  # Evaluate board
+        # terminal / horizon
+        if depth == 0 or board.game_over:
+            return None, board.relative_score(self.player_id)
 
-        col = None
-        if maximizing_player:
+        valid_moves = board.get_valid_moves()
+        if not valid_moves:  # safety net (should be caught by game_over)
+            return None, board.relative_score(self.player_id)
+
+        best_col = random.choice(valid_moves)  # fallback if all equal
+
+        if maximizing:
             value = -math.inf
             for c in valid_moves:
-                # Create a copy of the board with this move
-                new_board = board.copy()
-                new_board.game_state = board.get_successor_state(self.player_id, c)
-                new_board.current_player_idx = board.current_player_idx
-
-                # Recursively call minimax
-
-                _, new_score = self.minimax(new_board, depth - 1, alpha, beta, False)
-                if new_score > value:
-                    value = new_score
-                    col = c
-
-                if value > alpha:
-                    alpha = new_score
+                child = board.apply_move(self.player_id, c)
+                _, score = self._minimax(child, depth - 1, alpha, beta, False)
+                if score > value:
+                    value, best_col = score, c
+                alpha = max(alpha, value)
                 if beta <= alpha:
-                    break  # Alpha-beta pruning
-            return col, value
-
-        else:  # Minimizing player
+                    break  # β‑cutoff
+            return best_col, value
+        else:  # minimizing (opponent)
             value = math.inf
             for c in valid_moves:
-                # Create a copy of the board with this move
-                new_board = board.copy()
-                new_board.game_state = board.get_successor_state(self.opponent_id, c)
-                new_board.current_player_idx = board.current_player_idx
-
-                # Recursively call minimax
-                _, new_score = self.minimax(new_board, depth - 1, alpha, beta, True)
-
-                if new_score < value:
-                    value = new_score
-                    col = c
-
-                if value < beta:
-                    beta = value
+                child = board.apply_move(self.opponent_id, c)
+                _, score = self._minimax(child, depth - 1, alpha, beta, True)
+                if score < value:
+                    value, best_col = score, c
+                beta = min(beta, value)
                 if beta <= alpha:
-                    break  # Alpha-beta pruning
-            return col, value
+                    break  # α‑cutoff
+            return best_col, value
+
 
     def get_average_move_time(self):
         """
@@ -123,24 +100,8 @@ class AiPlayer:
         Returns:
             Average time in seconds
         """
-        if not self.move_times:
-            return 0
-        return sum(self.move_times) / len(self.move_times)
+        return sum(self.move_times) / len(self.move_times) if self.move_times else 0.0
+
+    def __str__(self):
+        return self.name
     
-    def get_last_move_time(self):
-        """
-        Get the time taken for the last move.
-        
-        Returns:
-            Time in seconds
-        """
-        return self.last_move_time
-    
-    def set_difficulty(self, difficulty):
-        """
-        Set the AI difficulty (minimax depth).
-        
-        Args:
-            difficulty: New depth for minimax
-        """
-        self.difficulty = difficulty

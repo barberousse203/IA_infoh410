@@ -39,7 +39,35 @@ class GameGUI:
         self.message_start_time = 0
         self.current_message = None
         self.message_duration = 0
-        self.turn_count = 0  # Add our own turn counter
+        self.turn_count = 1  # Add our own turn counter
+        self.ai_thinking = False  # Add a flag to control AI move timing
+        self.last_move_time = 0   # Track when the last move was made
+        
+        # Check if both players are AI and set initial state accordingly
+        self.ai_vs_ai = False
+        if player1 and player2 and player1.playertype == "AI" and player2.playertype == "AI":
+            self.ai_vs_ai = True
+            self.ai_thinking = True  # Start the first AI move automatically
+        
+        # Add button for returning to welcome page
+        self.button_width = 150
+        self.button_height = 50
+        self.button_x = self.width - self.button_width - 20  # 20px margin from right
+        self.button_y = self.height - self.button_height - 20  # 20px margin from bottom
+        self.return_button = pygame.Rect(self.button_x, self.button_y, self.button_width, self.button_height)
+        
+        # Add reset game button
+        self.reset_button_width = 150
+        self.reset_button_height = 50
+        self.reset_button_x = self.width - self.reset_button_width - 20  # 20px margin from right
+        self.reset_button_y = self.button_y - self.reset_button_height - 10  # 10px above main menu button
+        self.reset_button = pygame.Rect(self.reset_button_x, self.reset_button_y, self.reset_button_width, self.reset_button_height)
+        
+        self.button_color = (100, 150, 200)
+        self.button_hover_color = (120, 170, 220)
+        self.button_pressed = False
+        self.reset_button_pressed = False
+        self.return_to_menu = False
     
     def setup(self):
         """Set up the pygame window and initialize resources."""
@@ -54,6 +82,15 @@ class GameGUI:
         """Run the main game loop."""
         self.setup()
         
+        # Render the initial state before any AI moves to prevent black screen
+        self._render()
+        pygame.display.flip()
+        
+        # If in AI vs AI mode, add a small delay to ensure the board is visible before moves start
+        if self.ai_vs_ai:
+            # Wait a moment so the board is visible before AI moves
+            pygame.time.delay(500)  # 500ms delay
+            
         # Main game loop
         while self.running:
             self._handle_events()
@@ -61,17 +98,31 @@ class GameGUI:
             self._render()
             pygame.display.flip()
             self.clock.tick(60)  # 60 FPS
+            
+            # Check if we should return to menu
+            if self.return_to_menu:
+                break
         
-        pygame.quit()
+        # Clean up pygame if we're exiting completely
+        if not self.return_to_menu:
+            pygame.quit()
+            
+        return self.return_to_menu  # Return whether we want to go back to menu
     
     def _handle_events(self):
         """Handle pygame events like mouse clicks and key presses."""
+        mouse_pos = pygame.mouse.get_pos()
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # Handle mouse clicks for game interaction
                 self._handle_mouse_click(event.pos)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                # Reset button press states
+                self.button_pressed = False
+                self.reset_button_pressed = False
             elif event.type == pygame.KEYDOWN:
                 # Handle key presses
                 self._handle_key_press(event.key)
@@ -83,6 +134,21 @@ class GameGUI:
         Args:
             pos: (x, y) tuple of mouse position
         """
+        # Check if the return button was clicked
+        if self.return_button.collidepoint(pos):
+            self.button_pressed = True
+            self.return_to_menu = True
+            return
+            
+        # Check if the reset button was clicked
+        if self.reset_button.collidepoint(pos):
+            self.reset_button_pressed = True
+            self.game.reset_game()
+            self.turn_count = 1  # Reset turn count to 1 (not 0)
+            self.ai_thinking = self.ai_vs_ai  # Resume AI thinking if in AI vs AI mode
+            self.show_message("Game reset!", duration=1500)
+            return
+            
         if self.game.game_over:
             return
             
@@ -103,8 +169,19 @@ class GameGUI:
             current_player = self.game.get_current_player()
             if current_player.playertype == "Human":
                 success = self.game.make_move(move)
+
                 if success:
                     self.turn_count += 1  # Increment turn count on successful move
+                    self.last_move_time = time.time()  # Record when the move was made
+                    # Force a render update to show the human move immediately
+                    self._render()
+                    pygame.display.flip()
+                    
+                    # Set AI thinking flag if next player is AI
+                    next_player = self.game.get_current_player()
+                    if next_player.playertype == "AI":
+                        self.ai_thinking = True
+
                 if not success:
                     self.show_message("Invalid move! Try again.", duration=1500)
 
@@ -124,23 +201,42 @@ class GameGUI:
     
     def _update(self):
         """Update game state."""
-        # If current player is AI, get its move
-        if not self.game.game_over:
-            current_player = self.game.get_current_player()
-            if current_player.playertype == "AI":
-                try:
-                    move = current_player.get_move(self.game)
-                    success = self.game.make_move(move)
-                    if success:
-                        self.turn_count += 1  # Incrémenter le compteur de tours
-                    else:
-                        self.show_message(f"AI attempted invalid move: {move}")
-                except Exception as e:
-                    self.show_message(f"AI error: {str(e)}")
-        else:
-            return # No need to update if game is over
+        # If game is over, don't update further
+        if self.game.game_over:
+            return
             
-
+        # If current player is AI, get its move
+        current_player = self.game.get_current_player()
+        if current_player.playertype == "AI" and (self.ai_thinking or self.ai_vs_ai):
+            # Add a small delay before AI move (adjust as needed)
+            if time.time() - self.last_move_time < 0.5:  # 500ms delay
+                return
+                
+            try:
+                move = current_player.get_move(self.game)
+                success = self.game.make_move(move)
+                if success:
+                    self.turn_count += 1  # Increment turn count
+                    self.last_move_time = time.time()
+                    
+                    # Force a render update to show the AI move immediately in AI vs AI mode
+                    if self.ai_vs_ai:
+                        self._render()
+                        pygame.display.flip()
+                
+                # In AI vs AI mode, we always want the next AI to think
+                if self.ai_vs_ai:
+                    next_player = self.game.get_current_player()
+                    if next_player.playertype == "AI" and not self.game.game_over:
+                        self.ai_thinking = True
+                else:
+                    self.ai_thinking = False
+                    
+            except Exception as e:
+                self.show_message(f"AI error: {str(e)}")
+                self.ai_thinking = False
+                if self.ai_vs_ai:  # If in AI vs AI mode, stop automatic play on error
+                    self.ai_vs_ai = False
         
         # Check if game is over
         if self.game.check_game_over():
@@ -164,6 +260,10 @@ class GameGUI:
         
         # Render game information (current player, game status, etc)
         self._render_game_info()
+        
+        # Render the buttons
+        self._render_return_button()
+        self._render_reset_button()
     
     def _render_board(self):
         """Render the game board."""
@@ -214,9 +314,10 @@ class GameGUI:
     
     def _render_game_info(self):
         """Render game information."""
-        # Render current player
+        # Render current player with matching color
         current_player = self.game.get_current_player()
-        player_text = self.font.render(f"Current: {current_player}", True, self.colors['text'])
+        player_color = self.colors['player1'] if current_player.player_id == 1 else self.colors['player2']
+        player_text = self.font.render(f"Current: {current_player}", True, player_color)
         self.screen.blit(player_text, (20, 20))
         
         # Render turn counter using our own counter
@@ -227,7 +328,9 @@ class GameGUI:
         if self.game.game_over:
             winner = self.game.get_winner()
             if winner:
-                status_text = self.font.render(f"Winner: {winner}", True, self.colors['text'])
+                # Use winner's color for the winning message
+                winner_color = self.colors['player1'] if winner.player_id == 1 else self.colors['player2']
+                status_text = self.font.render(f"Winner: {winner}", True, winner_color)
             else:
                 status_text = self.font.render("Draw!", True, self.colors['text'])
             self.screen.blit(status_text, (self.width // 2 - 100, 20))
@@ -235,6 +338,46 @@ class GameGUI:
         # Display current message if any
         if self.current_message:
             self._display_current_message()
+    
+    def _render_return_button(self):
+        """Render the button to return to welcome page"""
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Determine button color based on mouse hover/press
+        button_color = self.button_color
+        if self.return_button.collidepoint(mouse_pos):
+            button_color = self.button_hover_color
+        if self.button_pressed and self.return_button.collidepoint(mouse_pos):
+            button_color = (90, 140, 190)  # darker when pressed
+            
+        # Draw the button
+        pygame.draw.rect(self.screen, button_color, self.return_button)
+        pygame.draw.rect(self.screen, (50, 50, 50), self.return_button, 2)  # Button border
+        
+        # Draw the button text
+        button_text = self.font.render("Main Menu", True, (255, 255, 255))
+        text_rect = button_text.get_rect(center=self.return_button.center)
+        self.screen.blit(button_text, text_rect)
+    
+    def _render_reset_button(self):
+        """Render the button to reset the game"""
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Determine button color based on mouse hover/press
+        button_color = self.button_color
+        if self.reset_button.collidepoint(mouse_pos):
+            button_color = self.button_hover_color
+        if self.reset_button_pressed and self.reset_button.collidepoint(mouse_pos):
+            button_color = (90, 140, 190)  # darker when pressed
+            
+        # Draw the button
+        pygame.draw.rect(self.screen, button_color, self.reset_button)
+        pygame.draw.rect(self.screen, (50, 50, 50), self.reset_button, 2)  # Button border
+        
+        # Draw the button text
+        button_text = self.font.render("Reset Game", True, (255, 255, 255))
+        text_rect = button_text.get_rect(center=self.reset_button.center)
+        self.screen.blit(button_text, text_rect)
     
     def _display_current_message(self):
         """Display the current message on screen."""
