@@ -1,0 +1,25 @@
+PERFORMANCE TEST RESULTS: MINIMAX VS ALPHA-BETA PRUNING
+============================================================
+
+System Information:
+Date and Time: 2025-05-30 19:23:38
+Python Version: 3.13.2 (tags/v3.13.2:4f8bb39, Feb  4 2025, 15:23:48) [MSC v.1942 64 bit (AMD64)]
+
+Depth      Minimax Nodes        Time (sec)      Alpha-Beta Nodes     Time (sec)     
+--------------------------------------------------------------------------------
+1          8                    0.00            8                    0.00           
+2          57                   0.02            38                   0.01           
+3          400                  0.11            200                  0.05           
+4          2,801                0.75            875                  0.21           
+5          19,608               5.23            3,046                0.74           
+
+Efficiency Comparison:
+Depth 1: Alpha-Beta evaluates 1.00x fewer nodes than standard Minimax
+Depth 2: Alpha-Beta evaluates 1.50x fewer nodes than standard Minimax
+Depth 3: Alpha-Beta evaluates 2.00x fewer nodes than standard Minimax
+Depth 4: Alpha-Beta evaluates 3.20x fewer nodes than standard Minimax
+Depth 5: Alpha-Beta evaluates 6.44x fewer nodes than standard Minimax
+
+Conclusion:
+Alpha-Beta pruning significantly reduces the number of nodes evaluated, enabling deeper searches
+and improved decision-making within the same time constraints compared to standard Minimax.

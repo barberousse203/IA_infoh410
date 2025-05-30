@@ -1,10 +1,17 @@
 # Entry point of the application
 
+import sys
 from game.Board import Board
 from ui.GameGUI import GameGUI
 from ui.WelcomePage import WelcomePage
+from performance_test import run_performance_test
 
 def main():
+    # Check for command-line arguments
+    if len(sys.argv) > 1 and sys.argv[1] == "--performance-test":
+        run_performance_test()
+        return
+        
     restart = True
     
     while restart:

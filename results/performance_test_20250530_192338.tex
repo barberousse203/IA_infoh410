@@ -1,0 +1,36 @@
+% Performance test results for Minimax vs Alpha-Beta pruning
+% Generated on 2025-05-30 19:23:38
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of Nodes Evaluated: Minimax vs Alpha-Beta Pruning}
+\label{tab:nodes_comparison}
+\begin{tabular}{|c|r|r|c|}
+\hline
+\textbf{Search Depth} & \textbf{Minimax Nodes} & \textbf{Alpha-Beta Nodes} & \textbf{Improvement (\%)} \\
+\hline
+1 & 8 & 8 & 0.0\% \\
+2 & 57 & 38 & 33.3\% \\
+3 & 400 & 200 & 50.0\% \\
+4 & 2,801 & 875 & 68.8\% \\
+5 & 19,608 & 3,046 & 84.5\% \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Execution Time Comparison: Minimax vs Alpha-Beta Pruning}
+\label{tab:time_comparison}
+\begin{tabular}{|c|r|r|c|}
+\hline
+\textbf{Search Depth} & \textbf{Minimax Time (s)} & \textbf{Alpha-Beta Time (s)} & \textbf{Speedup} \\
+\hline
+1 & 0.00 & 0.00 & 1.1x \\
+2 & 0.02 & 0.01 & 1.6x \\
+3 & 0.11 & 0.05 & 2.1x \\
+4 & 0.75 & 0.21 & 3.6x \\
+5 & 5.23 & 0.74 & 7.1x \\
+\hline
+\end{tabular}
+\end{table}
